@@ -58,6 +58,9 @@ const (
 	// Separate nested key components with dots, e.g. "a.b.1.c.d"
 	DotStyle
 
+	// Separate nested key components with slashs, e.g. "a/b/1/c/d"
+	SlashStyle
+
 	// Separate ala Rails, e.g. "a[b][c][1][d]"
 	RailsStyle
 )
@@ -143,6 +146,8 @@ func enkey(top bool, prefix, subkey string, style SeparatorStyle) string {
 		switch style {
 		case DotStyle:
 			key += "." + subkey
+		case SlashStyle:
+			key += "/" + subkey
 		case RailsStyle:
 			key += "[" + subkey + "]"
 		}
