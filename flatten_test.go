@@ -79,6 +79,7 @@ func TestFlatten(t *testing.T) {
 			"",
 			RailsStyle,
 		},
+
 		{
 			`{ "a": { "b": "c" }, "e": "f" }`,
 			map[string]interface{}{
@@ -104,6 +105,89 @@ func TestFlatten(t *testing.T) {
 			t.Errorf("%d: mismatch, got: %v want: %v", i+1, got, test.want)
 		}
 	}
+}
+
+func TestFlattenArray(t *testing.T) {
+	cases := []struct {
+		test   interface{}
+		want   []string
+		prefix string
+		style  SeparatorStyle
+	}{
+		{
+			`{
+				 "someitem": {
+					 "thesearecool": [
+						 {
+							 "neat": "wow"
+						 },
+						 {
+							 "neat": "tubular",
+							 "sausage": true,
+							 "eggs": false
+						 }
+						],
+
+					 "thisisok": "ham",
+					 "meh": [1.01, 2]
+					}
+			}`,
+			[]string{
+				"someitem.meh.0.1.01",
+				"someitem.meh.1.2",
+				"someitem.thesearecool.0.neat.wow",
+				"someitem.thesearecool.1.eggs.false",
+				"someitem.thesearecool.1.neat.tubular",
+				"someitem.thesearecool.1.sausage.true",
+				"someitem.thisisok.ham",
+			},
+			"",
+			DotStyle,
+		},
+
+		{
+			"{}",
+			[]string{},
+			"",
+			DotStyle,
+		},
+
+		{
+			[]interface{}{
+				map[string]interface{}{"foo": 1},
+				"bar",
+			},
+			[]string{
+				"0.foo.1",
+				"1.bar",
+			},
+			"",
+			DotStyle,
+		},
+	}
+
+	for i, test := range cases {
+		var m interface{}
+
+		switch test.test.(type) {
+		case string:
+			err := json.Unmarshal([]byte(test.test.(string)), &m)
+			if err != nil {
+				t.Errorf("%d: failed to unmarshal test: %v", i+1, err)
+			}
+		default:
+			m = test.test
+		}
+		// we need to sort to guarantee repeatability
+		got, err := FlattenAll(m, test.prefix, test.style, true)
+		if err != nil {
+			t.Errorf("%d: failed to flatten: %v", i+1, err)
+		}
+		if !reflect.DeepEqual(got, test.want) {
+			t.Errorf("%d: mismatch, got: %v want: %v", i+1, got, test.want)
+		}
+	}
+
 }
 
 func TestFlattenString(t *testing.T) {

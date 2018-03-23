@@ -46,6 +46,8 @@ package flatten
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
+	"sort"
 	"strconv"
 )
 
@@ -82,6 +84,23 @@ func Flatten(nested map[string]interface{}, prefix string, style SeparatorStyle)
 	return flatmap, nil
 }
 
+// FlattenAll generates a flat array from a nested map.  The original may include values of type map, slice
+// and scalar, but not struct.  Items in the flat array will be a compound of descending map keys and slice
+// iterations.  The presentation of keys is set by style.  A prefix is joined to each key.
+func FlattenAll(nested interface{}, prefix string, style SeparatorStyle, sorted bool) ([]string, error) {
+	result := []string{}
+
+	err := flattenAll(true, &result, nested, prefix, style)
+	if err != nil {
+		return nil, err
+	}
+
+	if sorted {
+		sort.Strings(result)
+	}
+	return result, nil
+}
+
 // FlattenString generates a flat JSON map from a nested one.  Keys in the flat map will be a compound of
 // descending map keys and slice iterations.  The presentation of keys is set by style.  A prefix is joined
 // to each key.
@@ -114,6 +133,41 @@ func flatten(top bool, flatMap map[string]interface{}, nested interface{}, prefi
 			}
 		default:
 			flatMap[newKey] = v
+		}
+
+		return nil
+	}
+
+	switch nested.(type) {
+	case map[string]interface{}:
+		for k, v := range nested.(map[string]interface{}) {
+			newKey := enkey(top, prefix, k, style)
+			assign(newKey, v)
+		}
+	case []interface{}:
+		for i, v := range nested.([]interface{}) {
+			newKey := enkey(top, prefix, strconv.Itoa(i), style)
+			assign(newKey, v)
+		}
+	default:
+		return NotValidInputError
+	}
+
+	return nil
+}
+
+func flattenAll(top bool, result *[]string, nested interface{}, prefix string, style SeparatorStyle) error {
+	assign := func(newKey string, v interface{}) error {
+		switch v.(type) {
+
+		case map[string]interface{}, []interface{}:
+			if err := flattenAll(false, result, v, newKey, style); err != nil {
+				return err
+			}
+
+		default:
+			newKey := fmt.Sprintf("%s.%v", newKey, v)
+			*result = append(*result, newKey)
 		}
 
 		return nil
