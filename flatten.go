@@ -124,18 +124,36 @@ func FlattenString(nestedstr, prefix string, style SeparatorStyle) (string, erro
 	return string(flatb), nil
 }
 
+func allPrimitives(arr []interface{}) bool {
+	for _, item := range arr {
+		switch item.(type) {
+		case string, int32, int64, float32, float64, json.Number:
+			continue
+		default:
+			return false
+		}
+	}
+	return true
+}
+
 func flatten(top bool, flatMap map[string]interface{}, nested interface{}, prefix string, style SeparatorStyle) error {
 	assign := func(newKey string, v interface{}) error {
+		shouldFlatten := false
+
 		switch v.(type) {
-		case map[string]interface{}, []interface{}:
-			if err := flatten(false, flatMap, v, newKey, style); err != nil {
-				return err
-			}
-		default:
-			flatMap[newKey] = v
+		case []interface{}:
+			shouldFlatten = !allPrimitives(v.([]interface{}))
+		case map[string]interface{}:
+			shouldFlatten = true
 		}
 
-		return nil
+		if !shouldFlatten {
+			flatMap[newKey] = v
+			return nil
+		}
+
+		err := flatten(false, flatMap, v, newKey, style)
+		return err
 	}
 
 	switch nested.(type) {
